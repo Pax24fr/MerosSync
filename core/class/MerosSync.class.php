@@ -1069,8 +1069,8 @@ class MerosSync extends eqLogic {
      * Start python daemon.
      * @return array Shell command return.
      */
-    public static function deamon_start()
-    {
+    public static function deamon_start() {
+	    self::deamon_stop();
         $deamon_info = self::deamon_info();
         if ($deamon_info['launchable'] != 'ok') {
             throw new Exception(__('Veuillez vérifier la configuration', __FILE__));
@@ -1097,54 +1097,32 @@ class MerosSync extends eqLogic {
         log::add('MerosSync','info',__('Lancement démon meross :', __FILE__).' '.$log);
         $result = exec($cmd . ' >> ' . log::getPathToLog('MerosSync') . ' 2>&1 &');
         $i = 0;
-        while ($i < 60)
-        {
+        while ($i < 30) {
             $deamon_info = self::deamon_info();
-            if (($deamon_info['state'] == 'ok') || ($deamon_info['state'] == 'error'))
-            {
+            if ($deamon_info['state'] == 'ok') {
                 break;
             }
             sleep(1);
             $i++;
         }
-        if ($deamon_info['state'] == 'error')
-        {
-            log::add('MerosSync', 'error', 'Le démon meross est en erreur, vérifiez la log', 'unableStartDeamon');
-            return false;
-        }
-        else if ($i >= 60)
-        {
-            log::add('MerosSync', 'error', 'Le démon meross a mis trop de temps à démarrer, vérifiez la log', 'unableStartDeamon');
+        if ($i >= 30) {
+            log::add('MerosSync', 'error', 'Le démon meross a mis trop de temps à démarrer, vérifiez les logs', 'unableStartDeamon');
             return false;
         }
         message::removeAll('MerosSync', 'unableStartDeamon');
-        log::add('MerosSync','info',__('Démon meross lancé.', __FILE__));
         return true;
     }
-    /**
-     * Stop python daemon.
-     * @return array Shell command return.
-     */
-    public static function deamon_stop() {
+ 
+     public static function deamon_stop() {
         $pid_file = jeedom::getTmpFolder('MerosSync') . '/daemon.pid';
         if (file_exists($pid_file)) {
             $pid = intval(trim(file_get_contents($pid_file)));
             system::kill($pid);
         }
-        $i = 0;
-        while ($i < 30) {
-            $deamon_info = self::deamon_info();
-            if ($deamon_info['state'] == 'nok') {
-                break;
-            }
-            sleep(1);
-            $i++;
-        }
-        if ($i >= 5) {
-            log::add('MerosSync', 'error', __('Impossible de stopper le démon meross, tuons le', __FILE__));
-            system::kill('MerossIOTd.py');
-        }
+        system::kill('MerossIOTd.py');
+		system::fuserk(config::byKey('socketport', 'MerosSync'));
     }
+    
     /**
      * Return information (status) about daemon.
      * @return array Shell command return.
